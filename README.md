@@ -6,13 +6,19 @@ Every time you close Instagram (or any distracting app) instead of scrolling, a 
 
 ## Status
 
-Prototype v0.1: a single web page to test the feel of the idea.
+Prototype v0.2: a web app you can add to your phone's home screen.
 
-- Tap **I closed Instagram** to add a dancing guy
-- Tap **I gave in** to lose one
+- Close Instagram (or tap **I closed Instagram**) and a guy joins the queue backstage
+- The next day, everyone you earned walks on stage for the party
+- Tap **I gave in** to send one home
 - **New week** clears the floor
 
-Progress is saved in your browser only.
+Progress is saved on your device only.
+
+## Put it on your phone
+
+1. Open the live site in Safari, tap Share, then **Add to Home Screen**.
+2. For automatic rewards on iPhone, open Shortcuts → Automation → + → App → Instagram → **Is Closed** → Run Immediately. Then add the action **Open URLs** with `https://kenzo8it.github.io/guy-dance/?closed=1`.
 
 ## Ideas for next versions
 

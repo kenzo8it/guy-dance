@@ -2,24 +2,42 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Guy Dance</title>
+<meta name="theme-color" content="#14111f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Guy Dance">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
 <style>
-  :root { --bg:#14111f; --panel:#221c35; --ink:#f4efe6; --muted:#9a93b3; --go:#5ee08f; --stop:#ff6b6b; }
+  :root { --bg:#14111f; --panel:#221c35; --ink:#f4efe6; --muted:#9a93b3; --go:#5ee08f; --stop:#ff6b6b; --gold:#ffd43b; }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Courier New",monospace; min-height:100vh; display:flex; flex-direction:column; align-items:center; }
-  header { text-align:center; padding:24px 16px 8px; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Courier New",monospace; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding-bottom:env(safe-area-inset-bottom); }
+  header { text-align:center; padding:calc(20px + env(safe-area-inset-top)) 16px 4px; }
   h1 { margin:0; font-size:40px; letter-spacing:4px; }
   .tag { color:var(--muted); margin-top:6px; }
-  canvas { width:min(100vw - 32px, 720px); aspect-ratio:3/2; background:#1b1630; border:4px solid var(--panel); image-rendering:pixelated; margin:16px; }
+  .stage { position:relative; width:min(100vw - 32px, 720px); margin:16px; }
+  canvas { display:block; width:100%; aspect-ratio:3/2; background:#1b1630; border:4px solid var(--panel); image-rendering:pixelated; }
+  .overlay { position:absolute; inset:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none; color:var(--muted); font-size:15px; line-height:1.6; padding:16px; }
+  .overlay.party { color:var(--gold); font-size:34px; font-weight:bold; letter-spacing:3px; text-shadow:3px 3px 0 #000; animation:pop .5s steps(4) both; }
+  @keyframes pop { from { transform:scale(.3); opacity:0 } to { transform:scale(1); opacity:1 } }
+  .backstage { color:var(--muted); text-align:center; margin:-4px 16px 8px; min-height:1.4em; }
+  .backstage b { color:var(--gold); }
   .stats { display:flex; gap:24px; color:var(--muted); }
   .stats b { color:var(--ink); font-size:22px; display:block; text-align:center; }
   .buttons { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; padding:16px; }
   button { font:inherit; font-size:16px; padding:14px 20px; border:none; border-bottom:4px solid rgba(0,0,0,.35); cursor:pointer; color:#14111f; }
   button:active { transform:translateY(2px); border-bottom-width:2px; }
-  .resist { background:var(--go); }
-  .gave { background:var(--stop); }
-  .reset { background:var(--muted); }
+  .resist { background:var(--go); } .gave { background:var(--stop); } .reset { background:var(--muted); }
+  .link { background:none; border:none; color:var(--muted); text-decoration:underline; font-size:13px; padding:4px; }
+  .toast { position:fixed; top:calc(16px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); background:var(--go); color:#14111f; padding:12px 18px; font-weight:bold; border-bottom:4px solid rgba(0,0,0,.35); opacity:0; transition:opacity .3s; pointer-events:none; max-width:calc(100vw - 32px); text-align:center; }
+  .toast.show { opacity:1; }
+  details { width:min(100vw - 32px, 720px); background:var(--panel); padding:14px 18px; margin:8px 16px; line-height:1.6; }
+  summary { cursor:pointer; font-weight:bold; }
+  details code { background:#14111f; padding:2px 6px; word-break:break-all; }
   footer { color:var(--muted); font-size:12px; padding:16px; text-align:center; }
 </style>
 </head>
@@ -29,7 +47,11 @@
   <div class="tag">Resist the scroll. Earn a guy. Get everyone dancing.</div>
 </header>
 
-<canvas id="floor" width="180" height="120"></canvas>
+<div class="stage">
+  <canvas id="floor" width="180" height="120"></canvas>
+  <div class="overlay" id="overlay"></div>
+</div>
+<div class="backstage" id="backstage"></div>
 
 <div class="stats">
   <div><b id="guys">0</b>dancing</div>
@@ -42,14 +64,37 @@
   <button class="gave" id="btnGave">I gave in 😬</button>
   <button class="reset" id="btnReset">New week</button>
 </div>
+<button class="link" id="btnPreview">Preview tomorrow's party</button>
 
-<footer>Prototype v0.1 · a Kenzo Studio experiment</footer>
+<details>
+  <summary>📱 Put Guy Dance on your phone</summary>
+  <p><b>1. Add it to your home screen.</b> Open this page in Safari, tap Share, then <i>Add to Home Screen</i>. It opens full-screen like an app.</p>
+  <p><b>2. Get rewarded automatically (iPhone).</b> Open the Shortcuts app → <i>Automation</i> → <i>+</i> → <i>App</i>. Choose Instagram, tick <i>Is Closed</i> (untick <i>Is Opened</i>), and pick <i>Run Immediately</i>. Add the action <i>Open URLs</i> with:</p>
+  <p><code id="hookUrl"></code></p>
+  <p>Now every time you close Instagram, a guy joins the queue backstage. Add the same automation for TikTok, X, or any other app you want to resist.</p>
+  <p><b>3. Come back tomorrow.</b> Everyone you earned today comes out and dances.</p>
+</details>
+
+<div class="toast" id="toast"></div>
+<footer>Prototype v0.2 · a Kenzo Studio experiment</footer>
 
 <script>
+// ---------- dates ----------
+const today = () => new Date().toLocaleDateString("en-CA");  // e.g. 2026-09-29, in your own timezone
+
 // ---------- saved progress (kept in this browser only) ----------
-const KEY = "guy-dance-v1";
-let state = { guys: [], resisted: 0, gaveIn: 0 };
-try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) state = s; } catch (e) {}
+// guys:      dancing on the floor
+// backstage: earned but waiting for tomorrow, each stamped with the day it was earned
+const KEY = "guy-dance-v2";
+let state = { guys: [], backstage: [], resisted: 0, gaveIn: 0 };
+try {
+  const s = JSON.parse(localStorage.getItem(KEY));
+  if (s) state = s;
+  else {
+    const old = JSON.parse(localStorage.getItem("guy-dance-v1"));   // bring over v0.1 guys
+    if (old) state = { guys: old.guys || [], backstage: [], resisted: old.resisted || 0, gaveIn: old.gaveIn || 0 };
+  }
+} catch (e) {}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
 
 // ---------- palettes for each new guy ----------
@@ -62,7 +107,8 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 function newGuy() {
   return { x: 8 + Math.random() * 160, y: 22 + Math.random() * 80,
            skin: pick(SKIN), hair: pick(HAIR), shirt: pick(SHIRT), pants: pick(PANTS),
-           move: Math.floor(Math.random() * 3), speed: 180 + Math.random() * 220, phase: Math.random() * 1000 };
+           move: Math.floor(Math.random() * 3), speed: 180 + Math.random() * 220, phase: Math.random() * 1000,
+           earned: today() };
 }
 
 // ---------- drawing one 16-bit guy (each "px" is one pixel on a 180x120 canvas) ----------
@@ -70,59 +116,118 @@ const ctx = document.getElementById("floor").getContext("2d");
 function px(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
 
 function drawGuy(g, t) {
-  const f = Math.floor((t + g.phase) / g.speed) % 2;     // frame 0 or 1
-  const bob = f ? -1 : 0;
-  const x = g.x, y = g.y + bob;
-  px(x + 2, g.y + 16, 8, 2, "rgba(0,0,0,.35)");        // shadow
+  let x = g.x, baseY = g.y;
+  let walking = false;
+  if (g.enter) {                                        // walking on from the side of the stage
+    const k = Math.min(1, (t - g.enter.start) / g.enter.dur);
+    if (k < 0) return;
+    x = g.enter.fromX + (g.x - g.enter.fromX) * k;
+    walking = k < 1;
+    if (!walking) delete g.enter;
+  }
+  const speed = walking ? 120 : g.speed;
+  const f = Math.floor((t + g.phase) / speed) % 2;      // frame 0 or 1
+  const y = baseY + (f ? -1 : 0);
+  px(x + 2, baseY + 16, 8, 2, "rgba(0,0,0,.35)");       // shadow
   px(x + 3, y, 6, 2, g.hair);                           // hair
   px(x + 3, y + 2, 6, 4, g.skin);                       // face
   px(x + 4, y + 3, 1, 1, "#14111f"); px(x + 7, y + 3, 1, 1, "#14111f"); // eyes
   px(x + 3, y + 6, 6, 5, g.shirt);                      // body
-  // arms: three dance moves, two frames each
-  const arms = [
-    [[0, 3, 2, 3, 10, 6, 2, 3], [0, 6, 2, 3, 10, 3, 2, 3]],   // the wave
-    [[1, 1, 2, 5, 9, 1, 2, 5],  [1, 7, 2, 4, 9, 7, 2, 4]],    // hands up
-    [[0, 6, 3, 2, 10, 4, 2, 2], [-1, 4, 2, 2, 9, 6, 3, 2]]    // the point
-  ][g.move][f];
+  const arms = walking
+    ? [[1, 6, 2, 4, 9, 6, 2, 4], [1, 7, 2, 4, 9, 7, 2, 4]][f]           // arms down while walking
+    : [
+        [[0, 3, 2, 3, 10, 6, 2, 3], [0, 6, 2, 3, 10, 3, 2, 3]],        // the wave
+        [[1, 1, 2, 5, 9, 1, 2, 5],  [1, 7, 2, 4, 9, 7, 2, 4]],         // hands up
+        [[0, 6, 3, 2, 10, 4, 2, 2], [-1, 4, 2, 2, 9, 6, 3, 2]]         // the point
+      ][g.move][f];
   px(x + arms[0], y + arms[1], arms[2], arms[3], g.skin);
   px(x + arms[4], y + arms[5], arms[6], arms[7], g.skin);
-  // legs
   if (f) { px(x + 3, y + 11, 2, 5, g.pants); px(x + 7, y + 11, 3, 4, g.pants); }
   else   { px(x + 2, y + 11, 3, 4, g.pants); px(x + 7, y + 11, 2, 5, g.pants); }
 }
 
 // ---------- disco floor + loop ----------
+let partyUntil = 0;
 function drawFloor(t) {
-  const beat = Math.floor(t / 400);
+  const party = t < partyUntil;
+  const beat = Math.floor(t / (party ? 150 : 400));
   for (let i = 0; i < 12; i++) for (let j = 0; j < 8; j++) {
-    const on = (i + j + beat) % 5 === 0;
-    px(i * 15, j * 15, 15, 15, on ? "#2d2450" : ((i + j) % 2 ? "#1b1630" : "#201a38"));
-  }
-  if (!state.guys.length) {
-    ctx.fillStyle = "#9a93b3"; ctx.font = "7px Courier New"; ctx.textAlign = "center";
-    ctx.fillText("The floor is empty.", 90, 56); ctx.fillText("Resist a scroll to start the party.", 90, 68);
+    const on = (i + j + beat) % (party ? 3 : 5) === 0;
+    const hot = party ? ["#5a2d82", "#2d5a82", "#825a2d"][(i + beat) % 3] : "#2d2450";
+    px(i * 15, j * 15, 15, 15, on ? hot : ((i + j) % 2 ? "#1b1630" : "#201a38"));
   }
 }
 function loop(t) {
+  now = t;
   drawFloor(t);
   [...state.guys].sort((a, b) => a.y - b.y).forEach(g => drawGuy(g, t));
+  if (partyUntil && t > partyUntil) { partyUntil = 0; render(); }
   requestAnimationFrame(loop);
 }
+let now = 0;
 
-function render() {
-  document.getElementById("guys").textContent = state.guys.length;
-  document.getElementById("resisted").textContent = state.resisted;
-  document.getElementById("gaveIn").textContent = state.gaveIn;
+// ---------- the daily reveal: yesterday's guys come out and dance ----------
+function releaseGuys(force) {
+  const ready = force ? state.backstage : state.backstage.filter(g => g.earned < today());
+  if (!ready.length) return 0;
+  state.backstage = state.backstage.filter(g => !ready.includes(g));
+  ready.forEach((g, i) => {
+    g.enter = { fromX: g.x < 90 ? -14 : 190, start: now + 1200 + i * 250, dur: 1400 };
+    state.guys.push(g);
+  });
+  save();
+  partyUntil = now + 4000 + ready.length * 250;
+  return ready.length;
 }
 
-document.getElementById("btnResist").onclick = () => { state.guys.push(newGuy()); state.resisted++; save(); render(); };
-document.getElementById("btnGave").onclick = () => { state.guys.pop(); state.gaveIn++; save(); render(); };
-document.getElementById("btnReset").onclick = () => {
-  if (confirm("Start a new week? Everyone goes home.")) { state = { guys: [], resisted: 0, gaveIn: 0 }; save(); render(); }
-};
+// ---------- UI ----------
+const $ = id => document.getElementById(id);
+function render() {
+  $("guys").textContent = state.guys.length;
+  $("resisted").textContent = state.resisted;
+  $("gaveIn").textContent = state.gaveIn;
+  const n = state.backstage.length;
+  $("backstage").innerHTML = n ? `🎭 <b>${n}</b> guy${n > 1 ? "s" : ""} warming up backstage. Out tomorrow.` : "";
+  $("btnPreview").style.display = n ? "" : "none";
+  const o = $("overlay");
+  if (partyUntil) { o.className = "overlay party"; o.textContent = "PARTY TIME!"; }
+  else if (!state.guys.length) {
+    o.className = "overlay";
+    o.innerHTML = n ? "The floor is empty tonight.<br>Your guys are getting ready backstage." : "The floor is empty.<br>Resist a scroll to start the party.";
+  } else { o.className = "overlay"; o.textContent = ""; }
+}
+let toastTimer;
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 3000);
+}
 
-render();
-requestAnimationFrame(loop);
+function earnGuy(source) {
+  state.backstage.push(newGuy()); state.resisted++; save(); render();
+  toast(source === "auto" ? `Nice, you closed it! Guy #${state.backstage.length} is backstage.` : `Guy #${state.backstage.length} is backstage. Out tomorrow!`);
+}
+$("btnResist").onclick = () => earnGuy("tap");
+$("btnGave").onclick = () => {
+  if (state.backstage.length) state.backstage.pop(); else state.guys.pop();
+  state.gaveIn++; save(); render(); toast("One guy went home. You've got this.");
+};
+$("btnReset").onclick = () => {
+  if (confirm("Start a new week? Everyone goes home.")) { state = { guys: [], backstage: [], resisted: 0, gaveIn: 0 }; save(); render(); }
+};
+$("btnPreview").onclick = () => { releaseGuys(true); render(); };
+
+// the link your phone opens when you close Instagram
+const hook = location.origin + location.pathname + "?closed=1";
+$("hookUrl").textContent = hook;
+
+requestAnimationFrame(t => {
+  now = t;
+  const params = new URLSearchParams(location.search);
+  if (params.get("closed")) { earnGuy("auto"); history.replaceState(null, "", location.pathname); }
+  releaseGuys(false);
+  render();
+  requestAnimationFrame(loop);
+});
 </script>
 </body>
 </html>
