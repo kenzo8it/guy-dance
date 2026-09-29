@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guy Dance</title>
+<style>
+  :root { --bg:#14111f; --panel:#221c35; --ink:#f4efe6; --muted:#9a93b3; --go:#5ee08f; --stop:#ff6b6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Courier New",monospace; min-height:100vh; display:flex; flex-direction:column; align-items:center; }
+  header { text-align:center; padding:24px 16px 8px; }
+  h1 { margin:0; font-size:40px; letter-spacing:4px; }
+  .tag { color:var(--muted); margin-top:6px; }
+  canvas { width:min(100vw - 32px, 720px); aspect-ratio:3/2; background:#1b1630; border:4px solid var(--panel); image-rendering:pixelated; margin:16px; }
+  .stats { display:flex; gap:24px; color:var(--muted); }
+  .stats b { color:var(--ink); font-size:22px; display:block; text-align:center; }
+  .buttons { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; padding:16px; }
+  button { font:inherit; font-size:16px; padding:14px 20px; border:none; border-bottom:4px solid rgba(0,0,0,.35); cursor:pointer; color:#14111f; }
+  button:active { transform:translateY(2px); border-bottom-width:2px; }
+  .resist { background:var(--go); }
+  .gave { background:var(--stop); }
+  .reset { background:var(--muted); }
+  footer { color:var(--muted); font-size:12px; padding:16px; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>GUY DANCE</h1>
+  <div class="tag">Resist the scroll. Earn a guy. Get everyone dancing.</div>
+</header>
+
+<canvas id="floor" width="180" height="120"></canvas>
+
+<div class="stats">
+  <div><b id="guys">0</b>dancing</div>
+  <div><b id="resisted">0</b>resisted</div>
+  <div><b id="gaveIn">0</b>gave in</div>
+</div>
+
+<div class="buttons">
+  <button class="resist" id="btnResist">I closed Instagram 💪</button>
+  <button class="gave" id="btnGave">I gave in 😬</button>
+  <button class="reset" id="btnReset">New week</button>
+</div>
+
+<footer>Prototype v0.1 · a Kenzo Studio experiment</footer>
+
+<script>
+// ---------- saved progress (kept in this browser only) ----------
+const KEY = "guy-dance-v1";
+let state = { guys: [], resisted: 0, gaveIn: 0 };
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) state = s; } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+// ---------- palettes for each new guy ----------
+const SKIN  = ["#f1c9a5", "#d9a47a", "#a86f4c", "#6e4630", "#ffd9b8"];
+const HAIR  = ["#2b1d14", "#f2d16b", "#c0392b", "#222", "#8e44ad", "#ecf0f1"];
+const SHIRT = ["#ff6b6b", "#5ee08f", "#4dabf7", "#ffd43b", "#cc5de8", "#ff922b", "#20c997"];
+const PANTS = ["#343a40", "#1c3d6e", "#5c3d2e", "#495057"];
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+function newGuy() {
+  return { x: 8 + Math.random() * 160, y: 22 + Math.random() * 80,
+           skin: pick(SKIN), hair: pick(HAIR), shirt: pick(SHIRT), pants: pick(PANTS),
+           move: Math.floor(Math.random() * 3), speed: 180 + Math.random() * 220, phase: Math.random() * 1000 };
+}
+
+// ---------- drawing one 16-bit guy (each "px" is one pixel on a 180x120 canvas) ----------
+const ctx = document.getElementById("floor").getContext("2d");
+function px(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
+
+function drawGuy(g, t) {
+  const f = Math.floor((t + g.phase) / g.speed) % 2;     // frame 0 or 1
+  const bob = f ? -1 : 0;
+  const x = g.x, y = g.y + bob;
+  px(x + 2, g.y + 16, 8, 2, "rgba(0,0,0,.35)");        // shadow
+  px(x + 3, y, 6, 2, g.hair);                           // hair
+  px(x + 3, y + 2, 6, 4, g.skin);                       // face
+  px(x + 4, y + 3, 1, 1, "#14111f"); px(x + 7, y + 3, 1, 1, "#14111f"); // eyes
+  px(x + 3, y + 6, 6, 5, g.shirt);                      // body
+  // arms: three dance moves, two frames each
+  const arms = [
+    [[0, 3, 2, 3, 10, 6, 2, 3], [0, 6, 2, 3, 10, 3, 2, 3]],   // the wave
+    [[1, 1, 2, 5, 9, 1, 2, 5],  [1, 7, 2, 4, 9, 7, 2, 4]],    // hands up
+    [[0, 6, 3, 2, 10, 4, 2, 2], [-1, 4, 2, 2, 9, 6, 3, 2]]    // the point
+  ][g.move][f];
+  px(x + arms[0], y + arms[1], arms[2], arms[3], g.skin);
+  px(x + arms[4], y + arms[5], arms[6], arms[7], g.skin);
+  // legs
+  if (f) { px(x + 3, y + 11, 2, 5, g.pants); px(x + 7, y + 11, 3, 4, g.pants); }
+  else   { px(x + 2, y + 11, 3, 4, g.pants); px(x + 7, y + 11, 2, 5, g.pants); }
+}
+
+// ---------- disco floor + loop ----------
+function drawFloor(t) {
+  const beat = Math.floor(t / 400);
+  for (let i = 0; i < 12; i++) for (let j = 0; j < 8; j++) {
+    const on = (i + j + beat) % 5 === 0;
+    px(i * 15, j * 15, 15, 15, on ? "#2d2450" : ((i + j) % 2 ? "#1b1630" : "#201a38"));
+  }
+  if (!state.guys.length) {
+    ctx.fillStyle = "#9a93b3"; ctx.font = "7px Courier New"; ctx.textAlign = "center";
+    ctx.fillText("The floor is empty.", 90, 56); ctx.fillText("Resist a scroll to start the party.", 90, 68);
+  }
+}
+function loop(t) {
+  drawFloor(t);
+  [...state.guys].sort((a, b) => a.y - b.y).forEach(g => drawGuy(g, t));
+  requestAnimationFrame(loop);
+}
+
+function render() {
+  document.getElementById("guys").textContent = state.guys.length;
+  document.getElementById("resisted").textContent = state.resisted;
+  document.getElementById("gaveIn").textContent = state.gaveIn;
+}
+
+document.getElementById("btnResist").onclick = () => { state.guys.push(newGuy()); state.resisted++; save(); render(); };
+document.getElementById("btnGave").onclick = () => { state.guys.pop(); state.gaveIn++; save(); render(); };
+document.getElementById("btnReset").onclick = () => {
+  if (confirm("Start a new week? Everyone goes home.")) { state = { guys: [], resisted: 0, gaveIn: 0 }; save(); render(); }
+};
+
+render();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
